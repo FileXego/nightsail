@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">夜航</string>
+    <string name="accessibility_service_description">夜航锁机引擎：监测前台应用，在睡眠锁/禅定/番茄专注时段拦截非白名单应用。不会读取屏幕内容。</string>
+</resources>
