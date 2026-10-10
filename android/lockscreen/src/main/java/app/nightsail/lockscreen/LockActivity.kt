@@ -2,8 +2,6 @@ package app.nightsail.lockscreen
 
 import android.app.Activity
 import android.app.ActivityManager
-import android.app.admin.DevicePolicyManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -61,7 +59,6 @@ class LockActivity : Activity() {
 
         val root = buildUi()
         setContentView(root)
-        maybeDisableStatusBar(disable = true)
     }
 
     override fun onResume() {
@@ -75,7 +72,6 @@ class LockActivity : Activity() {
     }
 
     override fun onDestroy() {
-        maybeDisableStatusBar(disable = false)
         super.onDestroy()
     }
 
@@ -165,17 +161,8 @@ class LockActivity : Activity() {
         }
     }
 
-    /** 设备管理员生效时，锁机期间禁下拉通知栏（防从通知跳进被锁应用）。 */
-    private fun maybeDisableStatusBar(disable: Boolean) {
-        val dpm = getSystemService(DevicePolicyManager::class.java)
-        val admin = ComponentName(this, AdminReceiver::class.java)
-        if (!dpm.isAdminActive(admin)) return
-        try {
-            dpm.setStatusBarDisabled(admin, disable)
-        } catch (_: SecurityException) {
-            // 设备管理员权限范围外的表现差异，静默放过
-        }
-    }
+    // 曾用 setStatusBarDisabled 在锁机期间禁下拉通知栏：它要求设备 OWNER
+    // （普通设备管理员会被拒绝），且官方文档注明在锁屏页无效。删除而非假装能用。
 }
 
 class AdminReceiver : android.app.admin.DeviceAdminReceiver()

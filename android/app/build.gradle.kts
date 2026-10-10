@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "app.nightsail"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.nightsail"
@@ -32,14 +32,8 @@ android {
         }
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
-        }
-    }
+    // ABI 切分交给 Flutter：`flutter build apk --split-per-abi`（见 README）。
+    // 手写 splits 会与 Flutter 注入的 ndk.abiFilters 冲突（它含 x86_64），构建直接失败。
 }
 
 flutter {

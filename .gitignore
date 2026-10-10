@@ -20,3 +20,6 @@ android/key.properties
 # 系统
 .DS_Store
 Thumbs.db
+
+# Flutter 生成物
+/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java

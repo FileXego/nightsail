@@ -20,6 +20,14 @@ class LockAccessibilityService : AccessibilityService() {
         /** 引擎存活心跳：每收到一次事件刷新一次，供 Flutter 体检"无障碍是否被系统回收" */
         @Volatile var lastEventAtMillis: Long = 0
             private set
+
+        /** 进程级实例句柄：watchdog 据此判断服务是否仍绑定存活。 */
+        @Volatile var instance: LockAccessibilityService? = null
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
     }
 
     override fun onServiceConnected() {
@@ -44,6 +52,7 @@ class LockAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onDestroy() {
+        instance = null
         Engine.instance.onAccessibilityDisconnected()
         super.onDestroy()
     }

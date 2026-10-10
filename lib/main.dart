@@ -33,7 +33,7 @@ class TestPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final snap = ref.watch(engineSnapshotProvider);
+    final snap = ref.watch(engineSnapshotProvider).value ?? EngineSnapshot.idle;
 
     return Scaffold(
       appBar: AppBar(title: const Text('夜航 M1 测试壳'), backgroundColor: Colors.transparent),

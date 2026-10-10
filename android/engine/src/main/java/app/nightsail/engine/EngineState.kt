@@ -53,6 +53,12 @@ class EngineStateMachine(
         listeners += l
     }
 
+    /** 从磁盘恢复一次会话（进程重启/开机后）。不走 arm 的守卫，直接进入 LOCKED 并通知监听者。 */
+    fun restore(s: Session) {
+        session = s
+        transition(EngineState.LOCKED)
+    }
+
     fun arm(mode: LockMode, lockUntilMillis: Long, whitelist: Set<String>): Boolean {
         if (state == EngineState.LOCKED) return false
         session = Session(mode, now(), lockUntilMillis, whitelist)

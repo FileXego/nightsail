@@ -36,10 +36,29 @@ class Engine private constructor() {
 
     @Volatile private lateinit var appContext: Context
     private var foregroundServiceUp = false
+    private var initialized = false
 
     fun init(context: Context) {
+        if (initialized) return   // 幂等：重复调用会重复挂监听，导致状态跃迁翻倍触发
+        initialized = true
         appContext = context.applicationContext
         stateMachine.addListener { state, _ -> onStateChanged(state) }
+        restoreFromStore()
+    }
+
+    /** 进程重启/开机后从磁盘重建会话，并重新武装前台服务与解锁闹钟。 */
+    fun restoreFromStore() {
+        val s = SessionStore.load(appContext) ?: return
+        stateMachine.restore(s)
+        ensureForegroundService()
+        scheduleAlarms(s.lockUntilMillis)
+    }
+
+    /** 开机 / 应用升级广播入口。init 幂等，故可安全重复调用。 */
+    fun onBoot(context: Context) {
+        init(context)
+        restoreFromStore()
+        EngineWatchdog.schedule(context)
     }
 
     /* ---------- 对外门面：发动 / 解除 ---------- */
@@ -48,6 +67,7 @@ class Engine private constructor() {
         val whitelist = loadWhitelist()
         val until = System.currentTimeMillis() + durationMillis
         if (stateMachine.arm(mode, until, whitelist)) {
+            SessionStore.save(appContext, stateMachine.session!!)
             scheduleAlarms(until)
             ensureForegroundService()
         }
@@ -104,6 +124,7 @@ class Engine private constructor() {
             EngineState.ENDING -> {
                 // 引擎只负责翻状态；拉帘动画/统计落库由 Flutter 订阅事件后完成
                 stateMachine.acknowledgeEnded()
+                SessionStore.clear(appContext)
             }
             else -> Unit
         }
@@ -112,25 +133,25 @@ class Engine private constructor() {
     private fun ensureForegroundService() {
         if (foregroundServiceUp) return
         val intent = Intent(appContext, EngineForegroundService::class.java)
-        if (Build.VERSION.SDK_INT >= 26) {
-            appContext.startForegroundService(intent)
-        } else {
-            appContext.startService(intent)
-        }
-        foregroundServiceUp = true
+        // 进程可能是在后台被拉起的（开机广播 / 无障碍重绑），此时 Android 12+ 可能拒绝 FGS 启动。
+        // 拒绝不致命：会话已落盘、闹钟已排，等下次合法入口（应用打开 / 无障碍连接）再拉起。
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 26) appContext.startForegroundService(intent)
+            else appContext.startService(intent)
+            foregroundServiceUp = true
+        }.onFailure { Log.w(TAG, "foreground service start deferred: ${it.message}") }
     }
 
     private fun scheduleAlarms(lockUntilMillis: Long) {
         val am = appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         // 解锁闹钟：锁屏页在屏时自己看表（轮询本地时间，分秒级准时）；
-        // 闹钟是"锁屏页不在场"（如重启）时的保底，允许 Doze 分钟级漂移。
-        val pi = pendingIntent(ACTION_UNLOCK, 1)
-        if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
-            // 未授予精确闹钟权限：退化为非精确，避免 SecurityException 崩溃。
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, lockUntilMillis, pi)
-            return
-        }
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, lockUntilMillis, pi)
+        // 闹钟是"锁屏页不在场"（如重启）时的保底。
+        // setAlarmClock 无需精确闹钟权限，且被允许从后台拉起前台服务，
+        // 因此用它作为锁机结束边界，替代旧的 setExactAndAllowWhileIdle + 权限降级分支。
+        am.setAlarmClock(
+            AlarmManager.AlarmClockInfo(lockUntilMillis, null),
+            pendingIntent(ACTION_UNLOCK, 1),
+        )
     }
 
     private fun cancelAlarms() {

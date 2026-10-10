@@ -7,11 +7,14 @@ allprojects {
     }
 }
 
-rootProject.layout.buildDirectory.value(File(rootProject.layout.buildDirectory.asFile.get(), "../build"))
+// Gradle 的 DirectoryProperty.value(...) 只接受 Directory/Provider<Directory>，不能直接传 File。
+// 构建产物统一输出到工程根 build/。
+val newBuildDir: Directory = rootProject.layout.projectDirectory.dir("../build")
+rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
-    val newBuildDir: Directory = rootProject.layout.buildDirectory.dir(project.name).get()
-    project.layout.buildDirectory.value(newBuildDir)
+    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+    project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 
 tasks.register<Delete>("clean") {

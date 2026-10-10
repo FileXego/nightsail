@@ -19,6 +19,11 @@
         android:icon="@drawable/ic_launcher"
         android:allowBackup="false">
 
+        <!-- Flutter v2 嵌入标记：Flutter 3.29+ 已删除 v1 嵌入，缺此标记构建直接失败 -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -71,6 +76,14 @@
         <receiver
             android:name="app.nightsail.engine.LockAlarmReceiver"
             android:exported="false" />
+        <receiver
+            android:name="app.nightsail.engine.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name="app.nightsail.lockscreen.AdminReceiver"
             android:exported="false">
