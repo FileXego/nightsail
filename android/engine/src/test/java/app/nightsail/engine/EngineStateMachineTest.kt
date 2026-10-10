@@ -11,7 +11,7 @@ class EngineStateMachineTest {
 
     private fun machine(now: Long = 0): Pair<EngineStateMachine, Clock> {
         val clock = Clock(now)
-        return EngineStateMachine(now = { clock.t }) to clock
+        return EngineStateMachine(now = { clock.t }, elapsed = { clock.t }) to clock
     }
 
     @Test
@@ -50,10 +50,12 @@ class EngineStateMachineTest {
 
     @Test
     fun `temporary pass grants then expires`() {
-        val (sm, _) = machine()
+        val (sm, clock) = machine()
         sm.arm(LockMode.SLEEP, 60_000, setOf("wechat"))
         sm.grantTemporaryPass("wechat", durationMs = 5000)
         assertTrue(sm.hasTemporaryPass("wechat"))
+        clock.t = 6_000   // 推进到放行窗口之后
+        assertFalse(sm.hasTemporaryPass("wechat"))
     }
 
     @Test

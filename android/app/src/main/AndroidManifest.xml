@@ -16,7 +16,7 @@
     <application
         android:name=".NightsailApp"
         android:label="夜航"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_launcher"
         android:allowBackup="false">
 
         <activity

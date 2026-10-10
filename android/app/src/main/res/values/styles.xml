@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Flutter 宿主启动主题，被 AndroidManifest 中 MainActivity 的 android:theme 引用。
+         ponytail: 只负责首帧背景色，不做启动图。 -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+</resources>

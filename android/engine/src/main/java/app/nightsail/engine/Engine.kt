@@ -124,11 +124,13 @@ class Engine private constructor() {
         val am = appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         // 解锁闹钟：锁屏页在屏时自己看表（轮询本地时间，分秒级准时）；
         // 闹钟是"锁屏页不在场"（如重启）时的保底，允许 Doze 分钟级漂移。
-        am.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            lockUntilMillis,
-            pendingIntent(ACTION_UNLOCK, 1),
-        )
+        val pi = pendingIntent(ACTION_UNLOCK, 1)
+        if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) {
+            // 未授予精确闹钟权限：退化为非精确，避免 SecurityException 崩溃。
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, lockUntilMillis, pi)
+            return
+        }
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, lockUntilMillis, pi)
     }
 
     private fun cancelAlarms() {
@@ -144,10 +146,16 @@ class Engine private constructor() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun queryLaunchers(): Set<String> {
+    // ponytail: 启动器集合每次前台切换都查，跨进程查询代价高 —— 首次算一次并缓存。
+    // 锁机途中换桌面（极罕见）会短暂失准，进程重启即刷新；届时再挂 PackageMonitor。
+    private var launcherCache: Set<String>? = null
+
+    private fun queryLaunchers(): Set<String> = launcherCache ?: run {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        val infos = appContext.packageManager.queryIntentActivities(intent, 0)
-        return infos.map { it.activityInfo.packageName }.toSet()
+        appContext.packageManager.queryIntentActivities(intent, 0)
+            .map { it.activityInfo.packageName }
+            .toSet()
+            .also { launcherCache = it }
     }
 
     fun loadWhitelist(): Set<String> =

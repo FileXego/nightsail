@@ -1,5 +1,7 @@
 package app.nightsail.engine
 
+import android.os.SystemClock
+
 /**
  * 引擎状态机 —— 全应用唯一真相源。
  *
@@ -33,6 +35,8 @@ data class Session(
 
 class EngineStateMachine(
     private var now: () -> Long = System::currentTimeMillis,
+    /** 单调时钟，专供短期放行表：系统改时间不影响放行窗口。可注入，保持纯 JVM 可测。 */
+    private var elapsed: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
     var state: EngineState = EngineState.IDLE
         private set
@@ -90,12 +94,12 @@ class EngineStateMachine(
 
     /** 锁屏页请求打开白名单应用：登记 5 秒放行。 */
     fun grantTemporaryPass(pkg: String, durationMs: Long = 5000) {
-        temporaryPasses[pkg] = android.os.SystemClock.elapsedRealtime() + durationMs
+        temporaryPasses[pkg] = elapsed() + durationMs
     }
 
     fun hasTemporaryPass(pkg: String): Boolean {
         val until = temporaryPasses[pkg] ?: return false
-        return android.os.SystemClock.elapsedRealtime() < until
+        return elapsed() < until
     }
 
     fun requestEmergencyUnlock(): Boolean {
